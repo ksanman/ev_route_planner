@@ -5,6 +5,7 @@ from time import time as t
 import collections
 import geopy.distance
 import datetime
+import math
 from enum import Enum
 
 class NavigationAction(Enum):
@@ -108,19 +109,25 @@ class EvRouteEnvironment:
         next_waypoint_point = [next_waypoint.Latitude, next_waypoint.Longitude]
 
         distance = self.calculate_distance_between_points(current_waypoint_point, next_waypoint_point)
-        battery = self.calculate_battery_loss(current_state.battery_charge, distance)
+        battery_loss = self.calculate_battery_loss(distance)
+        new_battery = current_state.battery_charge + battery_loss
         new_time = self.calculate_time_to_waypoint(current_state.time, distance)
-        return State(new_time, battery, next_waypoint)
-        
+        reward = self.calculate_reward(action, new_battery, battery_loss)
+        return State(new_time, new_battery, next_waypoint), reward
+    
+    def calculate_reward(self, action, battery_state, battery_charge_amount):
+        if action == NavigationAction.driving:
+            return (-1/(6 * math.pow(battery_state, 3)))
+        else:
+            return battery_charge_amount * 1.20
+
     #def calculate_time_to_waypoint(self, time, current_waypoint, next_waypoint):
     def calculate_time_to_waypoint(self, time, distance):
         time_to_travel = (distance /  45) *  60
         return time + datetime.timedelta(minutes = time_to_travel)
-
     
-    def calculate_battery_loss(self, current_battery_charge, distance):
-        battery_usage = distance / 30
-        return current_battery_charge + battery_usage
+    def calculate_battery_loss(self, distance):
+        return distance / 5
 
     def calculate_distance_between_points(self, point_1, point_2):
         return geopy.distance.distance(point_1, point_2).miles

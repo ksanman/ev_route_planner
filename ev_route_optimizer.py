@@ -11,4 +11,5 @@ action_space = ev_route_environment.NavigationAction
 #test getting the next action.
 action = action_space.driving
 start_state = env.initial_state
-next_state = env.get_next_state(start_state, action)
+next_state,reward = env.get_next_state(start_state, action)
+print(next_state.time, next_state.battery_charge, next_state.location.Title, reward)
