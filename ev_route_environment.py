@@ -117,8 +117,9 @@ class EvRouteEnvironment:
     
     def calculate_reward(self, action, battery_state, battery_charge_amount):
         if action == NavigationAction.driving:
-            return (-1/(6 * math.pow(battery_state, 3)))
+            return (-1/(6 * math.pow(battery_state + 4, 3)+ 1))
         else:
+	    #multiply the amount charged by $1.20 (average price of electricity
             return battery_charge_amount * 1.20
 
     #def calculate_time_to_waypoint(self, time, current_waypoint, next_waypoint):
