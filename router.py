@@ -5,12 +5,17 @@ import requests
 import os
 import webbrowser
 import collections
+import charger_database_manager
+import charger_objects as co
+
 class Router:
     def __init__(self):
         self.request_string = 'http://router.project-osrm.org/route/v1/driving/{0},{1};{2},{3}?overview=full&steps=true'
-        
+        self.charger_database = charger_database_manager.ChargerDatabase()
+        self.route_filepath = 'data/route.txt'
+        self.nearest_chargers_file = 'data/nearest_charger.json'
     
-    def get_route(self, start, end,filepath):
+    def get_route(self, start, end):
         print('Getting route...')
         url_request = self.request_string.format(start[0], start[1], end[0], end[1])
         r = requests.get(url_request)
@@ -19,6 +24,7 @@ class Router:
         print('Route recieved.')
         # Load the JSON to a Python list & dump it back out as formatted JSON
         data = json.loads(my_json)
+        self.save_to_file(data)
         return self.build_route(data)
 
     def draw_route(self, coordinates, charge_points):
@@ -35,17 +41,17 @@ class Router:
         m.save(filepath)
         webbrowser.open(filepath)
 
-    def save_to_file(self,data,filename):
+    def save_to_file(self,data):
         print('saving to file')
-        with open(filename, 'w') as f:
+        with open(self.route_filepath, 'w') as f:
             f.write(json.dumps(data, indent=4, sort_keys=True))
 
-        print('route saved to ',filename)
+        print('route saved to ',self.route_filepath)
 
-    def get_route_from_file(self, filename='data/logan_to_moab.txt'):
+    def get_route_from_file(self):
         print('Loading route...')
 
-        with open(filename, 'r') as f:
+        with open(self.route_filepath, 'r') as f:
         # Load the JSON to a Python list & dump it back out as formatted JSON
             data = json.loads(f.read())
 
@@ -61,7 +67,6 @@ class Router:
         return {'route':polyline.decode(route['geometry']),'intersections':intersections}
 
     def get_intersections(self, data):
-        steps = []
         intersections = []
         for l in data['legs']:
             for s in l['steps']:
@@ -70,3 +75,54 @@ class Router:
                     intersections.append([location[1], location[0]])
 
         return intersections
+
+
+    def get_nearest_chargers(self, route):
+        print('Getting nearest chargers')
+        nearest_chargers_dict = {}
+        nearest_chargers = []
+        #i = 0
+        for waypoint in route['intersections']:
+            data = self.charger_database.get_nearest_chargers(waypoint)
+
+            for row in data:
+                if row['id'] in nearest_chargers_dict.keys():
+                    continue
+
+                addressInfo = co.AddressInfo(accessComments=row['accesscomments'], 
+                    addressLine1=row['addressline1'], 
+                    addressLine2=row['addressline2'],
+                    contactEmail=row['contactemail'],
+                    contactTelephone1=row['contacttelephone1'],
+                    contactTelephone2=row['contacttelephone2'],
+                    countryID=row['countryid'],
+                    distanceUnit=row['distanceunit'],
+                    ID=row['id'],
+                    lat=row['latitude'],
+                    long=row['longitude'],
+                    postcode=row['postcode'],
+                    relatedUrl=row['relatedurl'],
+                    state=row['stateorprovince'],
+                    title=row['title'],
+                    town=row['town'],
+                    distanceFromCurrentWaypoint=row['distancefromcurrentwaypoint'])
+
+                nearest_chargers_dict[addressInfo.ID] = addressInfo
+                nearest_chargers.append(addressInfo)
+                #i += 1
+
+        self.save_nearest_chargers(nearest_chargers)
+        return nearest_chargers
+        
+    def save_nearest_chargers(self, nearest_chargers):
+        with open(self.nearest_chargers_file, 'w') as f:
+            f.write(json.dumps(nearest_chargers, default=co.to_json, indent=4, sort_keys=False))
+
+    def get_nearest_chargers_from_file(self):
+        with open(self.nearest_chargers_file, 'r') as f:
+            data = json.loads( f.read())
+            addresses = []
+            for c in data:
+                addresses.append(co.address_decoder(c))
+
+        return addresses

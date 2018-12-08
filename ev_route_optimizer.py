@@ -6,9 +6,12 @@ import random
 #create a new environment
 
 time = dt.strptime('16:00', '%H:%M')
-env = ev_route_environment.EvRouteEnvironment(time,100, 
-    startLocation=['-111.8338', '41.7370'], endLocation=['-112.024867','41.289583'],
-    charger_radius=3,route_from_file=False)
+# env = ev_route_environment.EvRouteEnvironment(time,100, 
+#     startLocation=['-111.8338', '41.7370'], endLocation=['-112.024867','41.289583'],
+#     charger_radius=3,route_from_file=False)
+
+env = ev_route_environment.EvRouteEnvironment(time,100,
+    charger_radius=3,route_from_file=True, chargers_from_file=True)
 
 print([state for state in env.states])
 print('number of states ', len(env.states))
@@ -20,7 +23,11 @@ action_space = ev_route_environment.NavigationAction
 # #test getting the next action.
 action = action_space.driving
 start_state = env.get_random_state()
-next_state,reward, done = env.get_next_state(start_state, action)
+done = False
+while not done:
+    next_state,s,reward, done = env.get_next_state(start_state, action)
+    start_state = next_state
+    print(next_state, ' ', s, ' ', reward, ' ', done)
 
 # Hyperparameters
 # alpha = 0.1

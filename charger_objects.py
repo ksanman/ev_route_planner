@@ -22,6 +22,9 @@ class AddressInfo:
             self.Town = town
             self.DistanceFromCurrentWaypoint = distanceFromCurrentWaypoint
             self.TripDistance = trip_distance
+    
+def to_json(instance):
+    return {k:v for k , v in vars(instance).items() if not str(k).startswith('_')}
 
 class Connection:
     def __init__(self, amps=None, connectionTypeId = None, currentTypeId = None, ID = None, levelID = None, powerKw = None, quantity=None, statusTypeID=None, voltage =None):
@@ -92,25 +95,28 @@ class Charger:
         self.UsageTypeID = usageTypeID
         self.UserComments = userComments
 
+def address_decoder(addressInfo):
+    return AddressInfo(addressInfo['AccessComments'] if 'AccessComments' in addressInfo else None,
+        addressInfo['AddressLine1'] if 'AddressLine1' in addressInfo else None,
+        addressInfo['AddressLine2'] if 'AddressLine2' in addressInfo else None,
+        addressInfo['ContactEmail'] if 'ContactEmail' in addressInfo else None,
+        addressInfo['ContactTelephone1'] if 'ContactTelephone1' in addressInfo else None,
+        addressInfo['ContactTelephone2'] if 'ContactTelephone2' in addressInfo else None,
+        addressInfo['CountryID'] if 'CountryID' in addressInfo else None,
+        addressInfo['DistanceUnit'] if 'DistanceUnit' in addressInfo else None,
+        addressInfo['ID'] if 'ID' in addressInfo else None,
+        addressInfo['Latitude'] if 'Latitude' in addressInfo else None,
+        addressInfo['Longitude'] if 'Longitude' in addressInfo else None,
+        addressInfo['Postcode'] if 'Postcode' in addressInfo else None,
+        addressInfo['RelatedUrl'] if 'RelatedUrl' in addressInfo else None,
+        addressInfo['StateOrProvince'] if 'StateOrProvince' in addressInfo else None,
+        addressInfo['Title'] if 'Title' in addressInfo else None,
+        addressInfo['Town'] if 'Town' in addressInfo else None)
+
 def object_decoder(obj):
     if 'AddressInfo' in obj:
         addressInfo = obj['AddressInfo']
-        a_info = AddressInfo(addressInfo['AccessComments'] if 'AccessComments' in addressInfo else None,
-            addressInfo['AddressLine1'] if 'AddressLine1' in addressInfo else None,
-            addressInfo['AddressLine2'] if 'AddressLine2' in addressInfo else None,
-            addressInfo['ContactEmail'] if 'ContactEmail' in addressInfo else None,
-            addressInfo['ContactTelephone1'] if 'ContactTelephone1' in addressInfo else None,
-            addressInfo['ContactTelephone2'] if 'ContactTelephone2' in addressInfo else None,
-            addressInfo['CountryID'] if 'CountryID' in addressInfo else None,
-            addressInfo['DistanceUnit'] if 'DistanceUnit' in addressInfo else None,
-            addressInfo['ID'] if 'ID' in addressInfo else None,
-            addressInfo['Latitude'] if 'Latitude' in addressInfo else None,
-            addressInfo['Longitude'] if 'Longitude' in addressInfo else None,
-            addressInfo['Postcode'] if 'Postcode' in addressInfo else None,
-            addressInfo['RelatedUrl'] if 'RelatedUrl' in addressInfo else None,
-            addressInfo['StateOrProvince'] if 'StateOrProvince' in addressInfo else None,
-            addressInfo['Title'] if 'Title' in addressInfo else None,
-            addressInfo['Town'] if 'Town' in addressInfo else None)
+        a_info= address_decoder(addressInfo)
 
     if "Connections" in obj:
         connections = []

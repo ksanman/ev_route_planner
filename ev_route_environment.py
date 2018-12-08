@@ -12,7 +12,7 @@ from decimal import Decimal
 from decimal import ROUND_HALF_UP
 
 class NavigationAction(Enum):
-    driving = 1 
+    driving = 1
     charging = 2
 
 
@@ -30,14 +30,13 @@ class State:
 
 
 class EvRouteEnvironment:
-    def __init__(self, end_time, start_charge, startLocation = ['-111.8338','41.7370'], endLocation=['-109.5498','38.5733'], charger_radius=5, 
-        route_from_file=False, filepath='data/logan_to_moab.txt'):
+    def __init__(self, end_time, battery_cap, startLocation = ['-111.8338','41.7370'], endLocation=['-109.5498','38.5733'], charger_radius=5, 
+        route_from_file=False, chargers_from_file=False):
         print('Creating new environment')
         self.charger_database = db.ChargerDatabase()
         self.route_machine = router.Router()
         self.end_time = end_time
-        self.start_charge = start_charge
-        self.battery_cap = 100
+        self.battery_cap = battery_cap
 
         # #Create the database and populate it.
         # try:
@@ -51,57 +50,57 @@ class EvRouteEnvironment:
         #     print(e)
 
         if route_from_file:
-            if not filepath:
-                raise 'Loading a route from a file requires a file path.'
             #Get a route from a file. 
-            self.route_data = self.route_machine.get_route_from_file(filepath)
+            self.route_data = self.route_machine.get_route_from_file()
         else:
             #Get a route using the api call.
-            self.route_data = self.route_machine.get_route(startLocation, endLocation, filepath)
+            self.route_data = self.route_machine.get_route(startLocation, endLocation)
 
         print('route points: ', len(self.route_data['route']))
         print('intersections: ',len(self.route_data['intersections']))
-        self.nearest_chargers_dict = {}
+        if chargers_from_file:
+            self.nearest_chargers = self.route_machine.get_nearest_chargers_from_file()
+        else:
+            self.nearest_chargers = self.route_machine.get_nearest_chargers(self.route_data)
 
-        print('Getting nearest chargers')
-        i = 0
-        for waypoint in self.route_data['intersections']:
-            data = self.charger_database.get_nearest_chargers(waypoint)
+        # print('Getting nearest chargers')
+        # i = 0
+        # for waypoint in self.route_data['intersections']:
+        #     data = self.charger_database.get_nearest_chargers(waypoint)
 
-            for row in data:
-                if row['id'] in self.nearest_chargers_dict.keys():
-                    continue
+        #     for row in data:
+        #         if row['id'] in self.nearest_chargers_dict.keys():
+        #             continue
 
-                addressInfo = co.AddressInfo(accessComments=row['accesscomments'], 
-                    addressLine1=row['addressline1'], 
-                    addressLine2=row['addressline2'],
-                    contactEmail=row['contactemail'],
-                    contactTelephone1=row['contacttelephone1'],
-                    contactTelephone2=row['contacttelephone2'],
-                    countryID=row['countryid'],
-                    distanceUnit=row['distanceunit'],
-                    ID=row['id'],
-                    lat=row['latitude'],
-                    long=row['longitude'],
-                    postcode=row['postcode'],
-                    relatedUrl=row['relatedurl'],
-                    state=row['stateorprovince'],
-                    title=row['title'],
-                    town=row['town'],
-                    distanceFromCurrentWaypoint=row['distancefromcurrentwaypoint'])
+        #         addressInfo = co.AddressInfo(accessComments=row['accesscomments'], 
+        #             addressLine1=row['addressline1'], 
+        #             addressLine2=row['addressline2'],
+        #             contactEmail=row['contactemail'],
+        #             contactTelephone1=row['contacttelephone1'],
+        #             contactTelephone2=row['contacttelephone2'],
+        #             countryID=row['countryid'],
+        #             distanceUnit=row['distanceunit'],
+        #             ID=row['id'],
+        #             lat=row['latitude'],
+        #             long=row['longitude'],
+        #             postcode=row['postcode'],
+        #             relatedUrl=row['relatedurl'],
+        #             state=row['stateorprovince'],
+        #             title=row['title'],
+        #             town=row['town'],
+        #             distanceFromCurrentWaypoint=row['distancefromcurrentwaypoint'])
 
-                self.nearest_chargers_dict[addressInfo.ID] = addressInfo
-                i += 1
+        #         self.nearest_chargers_dict[addressInfo.ID] = addressInfo
+        #         i += 1
 
-        print('Number of chargers along route: ', len(self.nearest_chargers_dict))
-        self.chargers = [n[1] for n in self.nearest_chargers_dict.items()]
-        self.locations = list(range(0, len(self.nearest_chargers_dict) - 1, 1))
+        print('Number of chargers along route: ', len(self.nearest_chargers))
+        self.locations = list(range(0, len(self.nearest_chargers) - 1, 1))
         self.states = self.compute_states()
         #self.reveresed_chargers = self.reverse(self.nearest_chargers)
 
     def compute_states(self):
         states = []
-        for stop in range(len(self.nearest_chargers_dict)):
+        for stop in range(len(self.nearest_chargers)):
             for level in range(self.battery_cap):
                     states.append([stop, level])
         return states
@@ -119,29 +118,29 @@ class EvRouteEnvironment:
 
     def display_route_in_browser(self):
         print('Displaying route.')
-        self.route_machine.draw_route(self.route_data['route'], [v[1] for v in self.nearest_chargers_dict.values()])
+        self.route_machine.draw_route(self.route_data['route'], self.nearest_chargers)
 
     def get_next_state(self, current_state_index, action):
         done = False
         current_state = self.states[current_state_index]
         #current_waypoint_index = self.reveresed_chargers.index(current_state.location)
-        current_waypoint = self.chargers[current_state[0]]
+        current_waypoint = self.nearest_chargers[current_state[0]]
         current_waypoint_point = [current_waypoint.Latitude, current_waypoint.Longitude]
 
-        if self.chargers[current_state[0] + 1]:
+        if current_state[0] + 1 != len(self.nearest_chargers):
             #next_waypoint = self.reveresed_chargers[current_waypoint_index + 1]
-            next_waypoint = self.chargers[current_state[0] + 1]
+            next_waypoint = self.nearest_chargers[current_state[0] + 1]
             next_waypoint_point = [next_waypoint.Latitude, next_waypoint.Longitude]
         else:
             done = True
-            return current_state, 0, done
+            return self.states.index(current_state), current_state, 0, done
 
         distance = self.calculate_distance_between_points(current_waypoint_point, next_waypoint_point)
         new_battery = self.calculate_battery_loss(distance, action, current_state[1])
         #new_time = self.calculate_time_to_waypoint(current_state.time, distance)
         reward = self.calculate_reward(action, new_battery, new_battery - current_state[1])
         next_state = [current_state[0] + 1, new_battery]
-        return next_state, reward, done
+        return self.states.index(next_state), next_state, reward, done
     
     def calculate_reward(self, action, battery_state, battery_charge_amount):
         if action == NavigationAction.driving:
