@@ -77,10 +77,10 @@ class EvRouteEnvironment:
     def compute_states(self):
         """ Compute every possible state and enumerate in a state table for easy access."""
         states = []
-        for t in range(self.T):
-            for level in range(self.B):
-                # Add 1 to account for the destination.
-                for stop in range(len(self.nearest_chargers) + 1):
+        # Add 1 to account for the destination.
+        for stop in range(len(self.nearest_chargers) + 1):
+            for t in range(self.T):
+                for level in range(self.B):
                     states.append([t, level, stop])
         
         return states
@@ -158,8 +158,8 @@ class EvRouteEnvironment:
         
         next_battery_level = self.calculate_battery_level_after_charging(state[1], w.charge_rate) if state[1] < self.B - 1 else state[1]
 
-        if next_battery_level > self.B:
-            next_battery_level = self.B
+        if next_battery_level >= self.B:
+            next_battery_level = self.B - 1
             reward -= 100
 
         return self.get_index_from_state([next_time, next_battery_level, w.id]), reward
@@ -182,11 +182,11 @@ class EvRouteEnvironment:
             new_battery_level =  0
             reward += -100
             
-        if state[0] + 1 >= self.T:
+        new_time = self.calculate_new_time_after_distance(state[0], distance_traveled)
+
+        if new_time >= self.T:
             new_time = state[0]
             reward += -1000
-        else:
-            new_time = self.calculate_new_time_after_distance(state[0], distance_traveled)
 
         return self.get_index_from_state([new_time, new_battery_level, state[2] + 1]), reward
 

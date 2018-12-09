@@ -459,6 +459,8 @@ class ChargerDatabase:
         FROM 
             ev.AddressInfo ai
             JOIN ev.Charger c ON ai.ID = C.AddressInfoID
+            JOIN ev.Connection co ON c.ID = co.ChargerID
+                AND co.LevelID = 3
         WHERE
             ST_DWithin(ai.Location, ST_MakePoint({0},{1})::geography, {2})
         ORDER BY

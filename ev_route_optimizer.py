@@ -5,58 +5,123 @@ import numpy as np
 import random
 import test_env
 import math
+from time import time
 #create a new environment
 #env = test_env.TestEnv()
 env = ev_route_environment.EvRouteEnvironment(route_from_file=True, chargers_from_file=True)
 times = env.T
 battery_max = env.B
 W = env.get_waypoint_from_index(-1).id - 1
+actions = range(len(env.actions))
 
+end_state_start = times*battery_max*W
 
 print('Construction optimal value table')
 
-V = np.zeros(times*battery_max*W)
-for t in range(times):
-    for eBatt in range(battery_max):
-        s = env.get_index_from_state([t, eBatt, W])
-        V[s] = env.calculate_terminal_reward(s)
+V = np.zeros(len(env.states))
+
+t = time()
+
+print('Calculating terminal V table.')
+
+for s in range(end_state_start, len(env.states)):
+    V[s] = env.calculate_terminal_reward(s)
+
+print('time: ', time() - t)
+
+# for t in range(times):
+#     for eBatt in range(battery_max):
+#         s = env.get_index_from_state([t, eBatt, W])
+#         V[s] = env.calculate_terminal_reward(s)
 
 
+# compute the rewards of each action for each state.
+D_reward =  [[0,0.0] for _ in range(end_state_start)]
+C_reward = [[0,0.0] for _ in range(end_state_start)]
+
+print('calculating rewards for all states')
+t = time()
+for s in range(end_state_start):
+    D_reward[s] = env.get_instant_reward_and_next_state(s, 0)
+    C_reward[s] = env.get_instant_reward_and_next_state(s, 1)
+
+print('time: ', time() - t)
+
+
+print('Calculating V Table for non-terminal states')
 i = 1
 #Construct optimal values
 while True:
     print ('Round {0}'.format(i))
+    t = time()
     delta = 0
-    for w in range(W-1, 0, -1):
-        for t in range(times):
-            for b in range(battery_max):
-                s = env.get_index_from_state([t, b, w])
-                v = V[s]
-                best = -100
-                for a in env.actions:
-                    next_state, reward = env.get_instant_reward_and_next_state(s, a)
-                    best = max(best, reward + V[next_state])
-                V[s] = best
-                err = v - V[s]
-                a = abs(err)
-                delta = max(delta, a)
-    if delta < 0.001:
+    V_copy = np.copy(V)
+    for s in range(end_state_start -1 , 0, -1):
+        v = V[s]
+        d = D_reward[s]
+        c = C_reward[s]
+
+        V[s] = max(d[1] + V[d[0]], c[1] + V[c[0]])
+    print('time: ', time() - t)
+
+    delta = np.sum(np.fabs(V_copy - V))
+    print('delta: ', delta)
+    if (np.sum(np.fabs(V_copy - V)) <= 0.001):
         break
     i += 1
 
+# while True:
+#     print ('Round {0}'.format(i))
+#     delta = 0
+#     for s in range(end_state_start -1 , 0, -1):
+#         v = V[s]
+#         V[s] =  np.argmax([reward + V[next_state] for next_state,reward
+#                 in [env.get_instant_reward_and_next_state(s, a) 
+#                     for a in actions]])
+#         err = v - V[s]
+#         a = abs(err)
+#         delta = max(delta, a)
+#     if delta < 0.001:
+#         break
+#     i += 1
+
+# while True:
+#     print ('Round {0}'.format(i))
+#     delta = 0
+#     for w in range(W-1, 0, -1):
+#         for t in range(times):
+#             for b in range(battery_max):
+#                 s = env.get_index_from_state([t, b, w])
+#                 v = V[s]
+#                 best = -100
+#                 for a in env.actions:
+#                     next_state, reward = env.get_instant_reward_and_next_state(s, a)
+#                     best = max(best, reward + V[next_state])
+#                 V[s] = best
+#                 err = v - V[s]
+#                 a = abs(err)
+#                 delta = max(delta, a)
+#     if delta < 0.001:
+#         break
+#     i += 1
+
+
 #get the optimal policy from those values
 print('Finding optimal policy')
+t = time()
 policy = np.zeros(len(env.states))
 for s in range(len(env.states)):
-    possible_actions = np.zeros(len(env.actions))
-    for a in range(len(env.actions)):
-            next_state, reward = env.get_instant_reward_and_next_state(s, a)
-            possible_actions[a] += (reward + V[next_state])
-    policy[s] = np.argmax(possible_actions)
+    np.zeros(len(env.actions))
+    policy[s] = np.argmax([reward + V[next_state] for next_state,reward
+        in [env.get_instant_reward_and_next_state(s, a) 
+            for a in actions]])
+
+print('time: ', time() - t)
 
 #Evaluate the policy 
+print('Evaluating policy')
 average_reward = 0
-for n in range(10):
+for n in range(1):
     print('')
     print('test ', n)
     print('')
