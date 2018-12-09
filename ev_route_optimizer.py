@@ -27,6 +27,8 @@ print('Calculating terminal V table.')
 for s in range(end_state_start, len(env.states)):
     V[s] = env.calculate_terminal_reward(s)
 
+T = [env.calculate_terminal_reward(s) for s in range(end_state_start, len(env.states))]
+
 print('time: ', time() - t)
 
 # for t in range(times):
@@ -41,7 +43,8 @@ C_reward = [[0,0.0] for _ in range(end_state_start)]
 
 print('calculating rewards for all states')
 t = time()
-for s in range(end_state_start):
+# don't calculate a reward for the start state!
+for s in range(0,end_state_start):
     D_reward[s] = env.get_instant_reward_and_next_state(s, 0)
     C_reward[s] = env.get_instant_reward_and_next_state(s, 1)
 
@@ -56,7 +59,7 @@ while True:
     t = time()
     delta = 0
     V_copy = np.copy(V)
-    for s in range(end_state_start -1 , 0, -1):
+    for s in range(end_state_start - 1 , -1, -1):
         v = V[s]
         d = D_reward[s]
         c = C_reward[s]
@@ -64,9 +67,9 @@ while True:
         V[s] = max(d[1] + V[d[0]], c[1] + V[c[0]])
     print('time: ', time() - t)
 
-    delta = np.sum(np.fabs(V_copy - V))
+    delta = (np.sum(np.fabs(V_copy - V)))
     print('delta: ', delta)
-    if (np.sum(np.fabs(V_copy - V)) <= 0.001):
+    if (np.sum(np.fabs(V_copy - V)) <= 24):
         break
     i += 1
 
@@ -111,10 +114,11 @@ print('Finding optimal policy')
 t = time()
 policy = np.zeros(len(env.states))
 for s in range(len(env.states)):
-    np.zeros(len(env.actions))
-    policy[s] = np.argmax([reward + V[next_state] for next_state,reward
-        in [env.get_instant_reward_and_next_state(s, a) 
-            for a in actions]])
+    if s < end_state_start:
+        d = D_reward[s]
+        c = C_reward[s]
+        policy[s] = np.argmax([d[1] + V[d[0]],c[1] + V[c[0]]])
+    
 
 print('time: ', time() - t)
 
@@ -130,17 +134,22 @@ for n in range(1):
 
     step_index = 0
     while True:
-        state, reward, done = env.act(state, int(policy[state]))
         action_taken = ev_route_environment.NavigationAction(int(policy[state]))
         print('action taken: {0}'.format(action_taken.name))
         print('time: ', env.get_state_from_index(state)[0] * .25 * 60, ' minutes')
         print('battery level: ', env.get_state_from_index(state)[1])
         print('checkpoint: ', env.get_state_from_index(state)[2])
         print('')
+
+        state, reward, done = env.act(state, int(policy[state]))
+
         total_reward += reward
         step_index += 1
-        if done:
-            break
         average_reward += total_reward
         print('total reward:' ,total_reward)
+
+        if done:
+            break
+
+        
 print('Average reward: ', average_reward/10)

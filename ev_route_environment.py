@@ -16,13 +16,17 @@ class NavigationAction(Enum):
     charging = 1
 
 class Waypoint:
-    def __init__(self, id, lat, lon, is_charger=True, charge_rate = 1.6, charge_price = 1.2):
+    def __init__(self, id, lat, lon,distance_from_previous_node, time_from_previous_node, 
+        energy_to_node, is_charger=True, charge_rate = 1.6, charge_price = 1.2):
         self.id = id
         self.lat = lat
         self.lon = lon
         self.is_charger = is_charger
         self.charge_rate = charge_rate
         self.charge_price = charge_price
+        self.distance_from_previous_node = distance_from_previous_node
+        self.time_from_previous_node = time_from_previous_node
+        self.energy_to_node = energy_to_node
 
 class EvRouteEnvironment:
     def __init__(self, trip_time=6, extra_time = 2, battery_cap=100, average_mpkwh = 5, startLocation = ['-111.8338','41.7370'], 
@@ -54,13 +58,13 @@ class EvRouteEnvironment:
         print('Number of chargers along route: ', len(self.nearest_chargers))
 
         print('Building route model')
-        self.start_point = self.route_data['route'][0]
+        start_point = self.route_data['route'][0]
         end_point = self.route_data['route'][-1]
-        self.route = self.build_route(end_point)
+        self.route = self.build_route(start_point, end_point)
         self.states = self.compute_states()
         self.actions = [NavigationAction.driving, NavigationAction.charging]
 
-    def build_route(self, end_point):
+    def build_route(self, start_point, end_point):
         """ Constructs a route of enumerated locations for Makorav Learning. 
         Each stop represents a charger location along the route. 
         The last waypoint is the end point, which may or may not
@@ -68,10 +72,21 @@ class EvRouteEnvironment:
         """
         route = []
         id = 1
+        route.append(Waypoint(id, start_point[0], start_point[1], 0,0,0, False))
         for charger in self.nearest_chargers:
-            route.append(Waypoint(id, charger.Latitude, charger.Longitude, True))
+            previous_route= route[-1]
+            distance_to_node = self.calculate_distance_between_points([previous_route.lat,previous_route.lon],[charger.Latitude, charger.Longitude])
+            time_to_node = self.calculate_new_time_after_distance(0, distance_to_node)
+            energy_to_node = self.calculate_battery_level_from_distance_traveled(0, distance_to_node)
+            route.append(Waypoint(id, charger.Latitude, charger.Longitude, distance_to_node,time_to_node, energy_to_node, True))
+
             id += 1
-        route.append(Waypoint(id, end_point[0], end_point[1], False))
+
+        previous_route = route[-1]
+        distance_to_node = self.calculate_distance_between_points([previous_route.lat,previous_route.lon],[end_point[0], end_point[1]])
+        time_to_node = self.calculate_new_time_after_distance(0, distance_to_node)
+        energy_to_node = self.calculate_battery_level_from_distance_traveled(0, distance_to_node)
+        route.append(Waypoint(id, end_point[0], end_point[1], distance_to_node,time_to_node, energy_to_node, True))
         return route
 
     def compute_states(self):
@@ -134,7 +149,7 @@ class EvRouteEnvironment:
 
         state = self.get_state_from_index(state_index)
 
-        if state_index == len(self.route) - 1:
+        if state[2] == len(self.route) - 1:
             return state_index, self.calculate_terminal_reward(state_index)
 
         if action == NavigationAction.charging.value:
@@ -148,7 +163,9 @@ class EvRouteEnvironment:
 
         w = self.get_waypoint_from_index(state[2])
         reward = self.calculate_charging_reward(state[1], w.charge_rate, w.charge_price)
-
+       
+        if state[2] == 0:
+            reward += -1000
         # Give a large negative reward for going over the expected time + extra time
         if state[0] + 1 >= self.T:
             next_time = state[0]
@@ -168,13 +185,9 @@ class EvRouteEnvironment:
         """ Calculates the instant reward for driving in the given state. 
         Returns the reward and the next state."""
         reward = self.calculate_driving_reward(state[1])
-
-        current_location = self.get_waypoint_from_index(state[2])
         next_location = self.get_waypoint_from_index(state[2] + 1)
-        distance_traveled = self.calculate_distance_between_points([current_location.lat, current_location.lon],
-            [next_location.lat, next_location.lon])
         
-        new_battery_level = self.calculate_battery_level_from_distance_traveled(state[1], distance_traveled)
+        new_battery_level = state[1] + next_location.energy_to_node
         
         # make sure the battery level doesn't go below zero. 
         # give a large negative reward for running out. 
@@ -182,7 +195,7 @@ class EvRouteEnvironment:
             new_battery_level =  0
             reward += -100
             
-        new_time = self.calculate_new_time_after_distance(state[0], distance_traveled)
+        new_time = state[0] + next_location.time_from_previous_node
 
         if new_time >= self.T:
             new_time = state[0]
@@ -200,16 +213,14 @@ class EvRouteEnvironment:
 
         has_charger = self.get_waypoint_from_index(self.get_state_from_index(state_index)[2]).is_charger
 
-        if action == NavigationAction.charging.value & has_charger:
-            return self.charge(state_index)
-        elif action == NavigationAction.driving.value & has_charger:
+        if action == NavigationAction.charging.value:
+            if has_charger:
+                return self.charge(state_index)
+            else:
+                return (self.get_state_from_index(state_index), -1000, False)
+        else:
             return self.drive(state_index)
 
-        # Only the final state should not have a charge
-        elif action == NavigationAction.driving.value &  has_charger is False:
-            raise 'Invalid action, cannot make drive decision for location with no charger'
-        else:
-            raise 'Invalid action, cannot perform action drive for location with no charger'
 
     def charge(self, state_index):
         """ Compute the next state and reward after charging in the passed in state. """
@@ -223,23 +234,22 @@ class EvRouteEnvironment:
 
         reward = self.calculate_charging_reward(new_batt, current_waypoint.charge_rate, current_waypoint.charge_price)
 
-        if new_batt > self.B:
+        if new_batt >= self.B:
             done = True
+            new_batt = self.B - 1
         if new_time > self.T:
             done = True
+            new_time = self.T - 1
 
         return (state_index, reward, done) if done else (self.get_index_from_state([new_time, new_batt, new_loc]), reward, done)
 
     def drive(self, state_index):
         """  Compute the next state and reward after driving in the passed in state. """
         state = self.states[state_index]
-        current_location = self.route[state[2]]
         next_location = self.route[state[2] + 1]
-        distance_traveled = self.calculate_distance_between_points([current_location.lat, current_location.lon],
-            [next_location.lat, next_location.lon])
         
-        new_battery_level = self.calculate_battery_level_from_distance_traveled(state[1], distance_traveled)
-        new_time = self.calculate_new_time_after_distance(state[0], distance_traveled)
+        new_battery_level = state[1] + next_location.energy_to_node
+        new_time = state[0] + next_location.time_from_previous_node
         done = False
         reward = 0
         if new_battery_level < 0:
@@ -249,9 +259,10 @@ class EvRouteEnvironment:
         else:
             reward = self.calculate_driving_reward(new_battery_level)
 
-        if new_time > self.T:
+        if new_time >= self.T:
             new_time = self.T - 1
             reward -= 100
+            done = True
         
         return (state, reward, done) if done else (self.states.index([new_time, new_battery_level, next_location.id]), reward, done)
 
