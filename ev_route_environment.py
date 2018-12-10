@@ -93,7 +93,7 @@ class EvRouteEnvironment:
         """ Compute every possible state and enumerate in a state table for easy access."""
         states = []
         # Add 1 to account for the destination.
-        for stop in range(len(self.nearest_chargers) + 1):
+        for stop in range(len(self.nearest_chargers) + 2):
             for t in range(self.T):
                 for level in range(self.B):
                     states.append([t, level, stop])
@@ -217,7 +217,7 @@ class EvRouteEnvironment:
             if has_charger:
                 return self.charge(state_index)
             else:
-                return (self.get_state_from_index(state_index), -1000, False)
+                return (state_index, -1000, False)
         else:
             return self.drive(state_index)
 
@@ -264,7 +264,7 @@ class EvRouteEnvironment:
             reward -= 100
             done = True
         
-        return (state, reward, done) if done else (self.states.index([new_time, new_battery_level, next_location.id]), reward, done)
+        return (self.get_index_from_state(state), reward, done) if done else (self.get_index_from_state([new_time, new_battery_level, next_location.id]), reward, done)
 
     def calculate_battery_level_after_charging(self, battery_level, charge_rate):
         """ Calculates the battery level after being on a charger for 15 minutes. 

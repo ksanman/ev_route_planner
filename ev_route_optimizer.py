@@ -125,7 +125,7 @@ print('time: ', time() - t)
 #Evaluate the policy 
 print('Evaluating policy')
 average_reward = 0
-for n in range(1):
+for n in range(10):
     print('')
     print('test ', n)
     print('')
@@ -135,18 +135,29 @@ for n in range(1):
     step_index = 0
     while True:
         action_taken = ev_route_environment.NavigationAction(int(policy[state]))
-        print('action taken: {0}'.format(action_taken.name))
+        print('Previous state:')
         print('time: ', env.get_state_from_index(state)[0] * .25 * 60, ' minutes')
         print('battery level: ', env.get_state_from_index(state)[1])
         print('checkpoint: ', env.get_state_from_index(state)[2])
+        print('action taken: {0}'.format(action_taken.name))
         print('')
 
         state, reward, done = env.act(state, int(policy[state]))
+
+        print('New state:')
+        print('time: ', env.get_state_from_index(state)[0] * .25 * 60, ' minutes')
+        print('battery level: ', env.get_state_from_index(state)[1])
+        print('checkpoint: ', env.get_state_from_index(state)[2])
+        print('Distance Traveled: {0}'.format(env.get_waypoint_from_index(env.get_state_from_index(state)[2]).distance_from_previous_node))
+        print('Energy Used: {0}'.format(env.get_waypoint_from_index(env.get_state_from_index(state)[2]).energy_to_node))
+        print('')
 
         total_reward += reward
         step_index += 1
         average_reward += total_reward
         print('total reward:' ,total_reward)
+        print('')
+        print('')
 
         if done:
             break
