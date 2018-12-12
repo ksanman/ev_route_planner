@@ -11,13 +11,15 @@ import random
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
 
+METERS_TO_MILES = 1609.344
+
 class NavigationAction(Enum):
     driving = 0
     charging = 1
 
 class Waypoint:
     def __init__(self, id, lat, lon,distance_from_previous_node, time_from_previous_node, 
-        energy_to_node, is_charger=True, charge_rate = 1.6, charge_price = 1.2):
+        energy_to_node, is_charger=True, charge_rate = 10, charge_price = 1.2, title=None):
         self.id = id
         self.lat = lat
         self.lon = lon
@@ -27,6 +29,7 @@ class Waypoint:
         self.distance_from_previous_node = distance_from_previous_node
         self.time_from_previous_node = time_from_previous_node
         self.energy_to_node = energy_to_node
+        self.Title = title
 
 class EvRouteEnvironment:
     def __init__(self, trip_time=6, extra_time = 2, battery_cap=100, average_mpkwh = 5, startLocation = ['-111.8338','41.7370'], 
@@ -40,6 +43,7 @@ class EvRouteEnvironment:
         self.T = (trip_time + extra_time) * 4
         self.B = battery_cap
         self.average_mpkhw = average_mpkwh
+        self.final_chargers = []
 
         if route_from_file:
             #Get a route from a file. 
@@ -75,18 +79,21 @@ class EvRouteEnvironment:
         route.append(Waypoint(id, start_point[0], start_point[1], 0,0,0, False))
         for charger in self.nearest_chargers:
             previous_route= route[-1]
-            distance_to_node = self.calculate_distance_between_points([previous_route.lat,previous_route.lon],[charger.Latitude, charger.Longitude])
+            distance_to_node = self.calculate_distance_and_time_between_points([previous_route.lat,previous_route.lon],[charger.Latitude, charger.Longitude])
             time_to_node = self.calculate_new_time_after_distance(0, distance_to_node)
             energy_to_node = self.calculate_battery_level_from_distance_traveled(0, distance_to_node)
-            route.append(Waypoint(id, charger.Latitude, charger.Longitude, distance_to_node,time_to_node, energy_to_node, True))
+            route.append(Waypoint(id, charger.Latitude, charger.Longitude, 
+            distance_from_previous_node=distance_to_node,time_from_previous_node= time_to_node, 
+            energy_to_node= energy_to_node,is_charger=True,title= charger.Title))
 
             id += 1
 
         previous_route = route[-1]
-        distance_to_node = self.calculate_distance_between_points([previous_route.lat,previous_route.lon],[end_point[0], end_point[1]])
+        distance_to_node = self.calculate_distance_and_time_between_points([previous_route.lat,previous_route.lon],[end_point[0], end_point[1]])
         time_to_node = self.calculate_new_time_after_distance(0, distance_to_node)
         energy_to_node = self.calculate_battery_level_from_distance_traveled(0, distance_to_node)
-        route.append(Waypoint(id, end_point[0], end_point[1], distance_to_node,time_to_node, energy_to_node, True))
+        route.append(Waypoint(id, end_point[0], end_point[1], 
+            distance_to_node,time_to_node, energy_to_node, False))
         return route
 
     def compute_states(self):
@@ -101,12 +108,11 @@ class EvRouteEnvironment:
         return states
 
     def get_random_state(self):
-        """Get a random state index from the state table. """
-        b_states = [k for k in range(self.B)]
-        return random.sample(b_states,1)[0]
+        """Get a random state """
+        return self.get_index_from_state(random.sample(self.states, 1)[0])
     
     def get_state_from_index(self, index):
-        """ Returns a state from the given index."""
+        """ Returns a state from the states table"""
         return self.states[index]
 
     def get_index_from_state(self, state):
@@ -118,10 +124,18 @@ class EvRouteEnvironment:
         passed in index."""
         return self.route[index]
 
+    def add_waypoint_charger_to_final_route(self, state_index):
+        """ Gets a waypoint add adds it to the finally route that will be 
+            displayed at the end. """
+        state = self.get_state_from_index(state_index)
+        waypoint = self.get_waypoint_from_index(state[2])
+        if waypoint not in self.final_chargers:
+            self.final_chargers.append(waypoint)
+
     def display_route_in_browser(self):
         """ Generate an HTML map of the route for browser display."""
         print('Displaying route.')
-        self.route_machine.draw_route(self.route_data['route'], self.nearest_chargers)
+        self.route_machine.draw_route(self.route_data['route'], self.final_chargers)
 
     def calculate_terminal_reward(self, state_index):
         """ Calculates the terminal reward for state s.
@@ -193,7 +207,7 @@ class EvRouteEnvironment:
         # give a large negative reward for running out. 
         if new_battery_level < 0:
             new_battery_level =  0
-            reward += -100
+            reward += -1000
             
         new_time = state[0] + next_location.time_from_previous_node
 
@@ -290,7 +304,7 @@ class EvRouteEnvironment:
         """ Calculates the reward for driving a certain distance. 
         The reward is computed using the final battery state. If the state is above 20%, return 0. 
         Other wise return a negative reward. If the state is 0, return -100. """
-        return 0 if battery_state >  self.B * (1/5) else -(pow((1/2) * battery_state - 10, 2))
+        return 0 if battery_state >  self.B * (1/3) else -(pow((1/5) * battery_state - 10, 2))
 
     def calculate_battery_level_from_distance_traveled(self, current_battery_level, distance):
         """ Calculates the battery lost over the given distance and returns the new battery level. """
@@ -299,7 +313,7 @@ class EvRouteEnvironment:
 
     def calculate_new_time_after_distance(self, current_time, distance):
         """ Calculates the time to travel the given distance. """
-        time_to_travel = self.round_to_nearest_quarter_hour(distance / .75)
+        time_to_travel = self.round_to_nearest_quarter_hour(distance / 1.08)
         new_time = current_time + int((time_to_travel / 60) * 4)
         return new_time
 
@@ -307,10 +321,11 @@ class EvRouteEnvironment:
         """ Round the given time t to the nearest quater hour for enumeration. """
         return 15 * int(Decimal(t/15).quantize(Decimal('0'), ROUND_HALF_UP))
 
-    def calculate_distance_between_points(self, point_1, point_2):
+    def calculate_distance_and_time_between_points(self, point_1, point_2):
         """ Calculates the distance traveled between two lat/long points using the geopu library.
         This will be replaced by calculating the distance between intersections using OSRM on the server.
         The latter step is very involved for this simple demonstration. """
-        return geopy.distance.distance(point_1, point_2).miles
+        distance = self.route_machine.get_road_distance_and_between_points(point_1, point_2)
+        return distance/ METERS_TO_MILES
         
 

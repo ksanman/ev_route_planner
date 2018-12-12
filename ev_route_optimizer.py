@@ -8,7 +8,7 @@ import math
 from time import time
 #create a new environment
 #env = test_env.TestEnv()
-env = ev_route_environment.EvRouteEnvironment(route_from_file=True, chargers_from_file=True)
+env = ev_route_environment.EvRouteEnvironment(battery_cap=40 ,route_from_file=True, chargers_from_file=True)
 times = env.T
 battery_max = env.B
 W = env.get_waypoint_from_index(-1).id - 1
@@ -43,7 +43,7 @@ C_reward = [[0,0.0] for _ in range(end_state_start)]
 
 print('calculating rewards for all states')
 t = time()
-# don't calculate a reward for the start state!
+# don't calculate a reward for the end state!
 for s in range(0,end_state_start):
     D_reward[s] = env.get_instant_reward_and_next_state(s, 0)
     C_reward[s] = env.get_instant_reward_and_next_state(s, 1)
@@ -125,11 +125,12 @@ print('time: ', time() - t)
 #Evaluate the policy 
 print('Evaluating policy')
 average_reward = 0
-for n in range(10):
+for n in range(1):
     print('')
     print('test ', n)
     print('')
-    state = env.get_random_state()
+    state = env.get_index_from_state([0,39, 0])
+    #state = env.get_random_state()
     total_reward = 0
 
     step_index = 0
@@ -143,6 +144,9 @@ for n in range(10):
         print('')
 
         state, reward, done = env.act(state, int(policy[state]))
+
+        if action_taken == ev_route_environment.NavigationAction.charging:
+            env.add_waypoint_charger_to_final_route(state)
 
         print('New state:')
         print('time: ', env.get_state_from_index(state)[0] * .25 * 60, ' minutes')
@@ -160,6 +164,7 @@ for n in range(10):
         print('')
 
         if done:
+            env.display_route_in_browser()
             break
 
         

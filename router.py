@@ -27,6 +27,18 @@ class Router:
         self.save_to_file(data)
         return self.build_route(data)
 
+    def get_road_distance_and_between_points(self, point1, point2):
+        request = 'http://router.project-osrm.org/route/v1/driving/{0},{1};{2},{3}?overview=simplified'.format(point1[1], point1[0], point2[1], point2[0])
+        r = requests.get(request)
+        c = r.content 
+        my_json = c.decode('utf8').replace("'", '"')
+        data = json.loads(my_json)
+        route = data["routes"][0]
+        leg = route["legs"][0]
+        distance = float(leg["distance"])
+        return distance
+
+
     def draw_route(self, coordinates, charge_points):
         # Create the map and add the line
         print('Drawing route')
@@ -35,7 +47,7 @@ class Router:
         m.add_child(my_PolyLine)
 
         for point in charge_points:
-            folium.Marker(location=[point.Latitude, point.Longitude], popup=point.Title).add_to(m)
+            folium.Marker(location=[point.lat, point.lon], popup=point.Title).add_to(m)
 
         filepath = 'data/map.html'
         m.save(filepath)
