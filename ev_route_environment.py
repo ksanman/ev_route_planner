@@ -19,7 +19,7 @@ class NavigationAction(Enum):
 
 class Waypoint:
     def __init__(self, id, lat, lon,distance_from_previous_node, time_from_previous_node, 
-        energy_to_node, is_charger=False, charge_rate = 10, charge_price = 1.2, title=None):
+        energy_to_node, is_charger=True, charge_rate = 10, charge_price = 0.20, title=None):
         self.id = id
         self.lat = lat
         self.lon = lon
@@ -150,7 +150,7 @@ class EvRouteEnvironment:
         w = self.get_waypoint_from_index(state[2])
         battery_level = state[1]
         time_reward = self.expected_time - state[0]
-        battery_reward = -pow((1/3) * battery_level - 20, 2) if battery_level < 50 else 0
+        battery_reward = -pow((1/5) * ((battery_level/self.B)*100) - 10, 2) if ((battery_level/self.B)*100) < 50 else 0
         if w.is_charger:
             return time_reward
         else:
@@ -205,7 +205,7 @@ class EvRouteEnvironment:
         
         # make sure the battery level doesn't go below zero. 
         # give a large negative reward for running out. 
-        if new_battery_level < 0:
+        if new_battery_level < 1:
             new_battery_level =  0
             reward += -1000
             
@@ -285,7 +285,7 @@ class EvRouteEnvironment:
         For the initial project, the value of 1.6 kwh (40kwh for a 1 hour charge) charge average 
         will be used. The modeled function loosly represents real chargers, that slow down 
         once the battery nears capacity. """
-        if battery_level < self.B:
+        if battery_level < self.B * .80:
             new_battery_level = int(Decimal(battery_level + charge_rate).quantize(Decimal('0'), rounding=ROUND_HALF_UP))
         else:
             new_battery_level = battery_level + int(Decimal((1/3.2) * (pow((battery_level - 80)/4, 2) + 40))
@@ -304,7 +304,7 @@ class EvRouteEnvironment:
         """ Calculates the reward for driving a certain distance. 
         The reward is computed using the final battery state. If the state is above 20%, return 0. 
         Other wise return a negative reward. If the state is 0, return -100. """
-        return 0 if battery_state >  self.B * (1/3) else -(pow((1/5) * battery_state - 10, 2))
+        return 0 if ((battery_state/self.B)*100) >  self.B * (1/2) else -(pow((1/5) * ((battery_state/self.B)*100) - 10, 2))
 
     def calculate_battery_level_from_distance_traveled(self, current_battery_level, distance):
         """ Calculates the battery lost over the given distance and returns the new battery level. """

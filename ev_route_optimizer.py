@@ -8,8 +8,8 @@ import math
 from time import time
 #create a new environment
 #env = test_env.TestEnv()
-env = ev_route_environment.EvRouteEnvironment(battery_cap=50 ,route_from_file=False, chargers_from_file=False)
-#env = ev_route_environment.EvRouteEnvironment(endLocation=['-113.5684','37.0965'],battery_cap=40 ,route_from_file=False, chargers_from_file=False)
+#env = ev_route_environment.EvRouteEnvironment(battery_cap=40 ,route_from_file=False, chargers_from_file=False)
+env = ev_route_environment.EvRouteEnvironment(trip_time=8, extra_time = 2,endLocation=['-113.5684','37.0965'],battery_cap=40 ,route_from_file=False, chargers_from_file=False)
 
 times = env.T
 battery_max = env.B
@@ -29,7 +29,7 @@ print('Calculating terminal V table.')
 for s in range(end_state_start, len(env.states)):
     V[s] = env.calculate_terminal_reward(s)
 
-T = [env.calculate_terminal_reward(s) for s in range(end_state_start, len(env.states))]
+#T = [env.calculate_terminal_reward(s) for s in range(end_state_start, len(env.states))]
 
 print('time: ', time() - t)
 
@@ -66,7 +66,7 @@ while True:
 
     delta = (np.sum(np.fabs(V_copy - V)))
     print('delta: ', delta)
-    if (np.sum(np.fabs(V_copy - V)) <= 24):
+    if (np.sum(np.fabs(V_copy - V)) <= 0.1):
         break
     i += 1
 
@@ -88,9 +88,9 @@ print('time: ', time() - t)
 print('Evaluating policy')
 average_reward = 0
 for n in range(1):
-    print('')
-    print('test ', n)
-    print('')
+    #print('')
+    #print('test ', n)
+    #print('')
     state = env.get_index_from_state([0,39, 0])
     #state = env.get_random_state()
     total_reward = 0
@@ -116,6 +116,9 @@ for n in range(1):
         if done:
             env.display_route_in_browser()
             break
+    ns = env.get_state_from_index(state)
+    print('Battery level: ', ns[1])
+    print('Trip time: ', ns[0]*15, ' minutes') 
     for k,p in charging_points.items():
         w = env.get_waypoint_from_index(k).Title
         t = p*15
