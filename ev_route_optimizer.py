@@ -173,6 +173,9 @@ for n in range(1):
             env.display_route_in_browser()
             break
     for k,p in charging_points.items():
-        print 'Stop at {0} for {1} minutes.'.format(env.get_waypoint_from_index(env.get_state_from_index(state)[2]).Title, p*4)
+        w = env.get_waypoint_from_index(env.get_state_from_index(state)[2]).Title
+        t = p*4
+        s = 'Stop at {0} for {1} minutes.'.format(w, t)
+        print(s)
         
 print('Average reward: ', average_reward)
