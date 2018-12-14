@@ -8,7 +8,7 @@ import math
 from time import time
 #create a new environment
 #env = test_env.TestEnv()
-env = ev_route_environment.EvRouteEnvironment(battery_cap=40 ,route_from_file=False, chargers_from_file=False)
+env = ev_route_environment.EvRouteEnvironment(battery_cap=50 ,route_from_file=False, chargers_from_file=False)
 #env = ev_route_environment.EvRouteEnvironment(endLocation=['-113.5684','37.0965'],battery_cap=40 ,route_from_file=False, chargers_from_file=False)
 
 times = env.T
@@ -150,10 +150,10 @@ for n in range(1):
 
         if action_taken == ev_route_environment.NavigationAction.charging:
             env.add_waypoint_charger_to_final_route(state)
-            if state not in charging_points:
-                  charging_points[env.get_state_from_index(state)[2]] = 1
-            else:
+            if env.get_state_from_index(state)[2] in charging_points:
                   charging_points[env.get_state_from_index(state)[2]] += 1
+            else:
+                  charging_points[env.get_state_from_index(state)[2]] = 1
        # print('New state:')
        # print('time: ', env.get_state_from_index(state)[0] * .25 * 60, ' minutes')
        # print('battery level: ', env.get_state_from_index(state)[1])
@@ -174,7 +174,7 @@ for n in range(1):
             break
     for k,p in charging_points.items():
         w = env.get_waypoint_from_index(env.get_state_from_index(state)[2]).Title
-        t = p*4
+        t = p*15
         s = 'Stop at {0} for {1} minutes.'.format(w, t)
         print(s)
         
