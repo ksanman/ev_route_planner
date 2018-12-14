@@ -8,7 +8,9 @@ import math
 from time import time
 #create a new environment
 #env = test_env.TestEnv()
-env = ev_route_environment.EvRouteEnvironment(battery_cap=40 ,route_from_file=True, chargers_from_file=True)
+env = ev_route_environment.EvRouteEnvironment(battery_cap=40 ,route_from_file=False, chargers_from_file=False)
+#env = ev_route_environment.EvRouteEnvironment(endLocation=['-113.5684','37.0965'],battery_cap=40 ,route_from_file=False, chargers_from_file=False)
+
 times = env.T
 battery_max = env.B
 W = env.get_waypoint_from_index(-1).id - 1
@@ -134,38 +136,43 @@ for n in range(1):
     total_reward = 0
 
     step_index = 0
+    charging_points = {}
     while True:
         action_taken = ev_route_environment.NavigationAction(int(policy[state]))
-        print('Previous state:')
-        print('time: ', env.get_state_from_index(state)[0] * .25 * 60, ' minutes')
-        print('battery level: ', env.get_state_from_index(state)[1])
-        print('checkpoint: ', env.get_state_from_index(state)[2])
-        print('action taken: {0}'.format(action_taken.name))
-        print('')
+       # print('Previous state:')
+       # print('time: ', env.get_state_from_index(state)[0] * .25 * 60, ' minutes')
+       # print('battery level: ', env.get_state_from_index(state)[1])
+       # print('checkpoint: ', env.get_state_from_index(state)[2])
+       # print('action taken: {0}'.format(action_taken.name))
+       # print('')
 
         state, reward, done = env.act(state, int(policy[state]))
 
         if action_taken == ev_route_environment.NavigationAction.charging:
             env.add_waypoint_charger_to_final_route(state)
-
-        print('New state:')
-        print('time: ', env.get_state_from_index(state)[0] * .25 * 60, ' minutes')
-        print('battery level: ', env.get_state_from_index(state)[1])
-        print('checkpoint: ', env.get_state_from_index(state)[2])
-        print('Distance Traveled: {0}'.format(env.get_waypoint_from_index(env.get_state_from_index(state)[2]).distance_from_previous_node))
-        print('Energy Used: {0}'.format(env.get_waypoint_from_index(env.get_state_from_index(state)[2]).energy_to_node))
-        print('')
+            if state not in charging_points:
+                  charging_points[env.get_state_from_index(state)[2]] = 1
+            else:
+                  charging_points[env.get_state_from_index(state)[2]] += 1
+       # print('New state:')
+       # print('time: ', env.get_state_from_index(state)[0] * .25 * 60, ' minutes')
+       # print('battery level: ', env.get_state_from_index(state)[1])
+       # print('checkpoint: ', env.get_state_from_index(state)[2])
+       # print('Distance Traveled: {0}'.format(env.get_waypoint_from_index(env.get_state_from_index(state)[2]).distance_from_previous_node))
+       # print('Energy Used: {0}'.format(env.get_waypoint_from_index(env.get_state_from_index(state)[2]).energy_to_node))
+       # print('')
 
         total_reward += reward
         step_index += 1
         average_reward += total_reward
-        print('total reward:' ,total_reward)
-        print('')
-        print('')
+       # print('total reward:' ,total_reward)
+       # print('')
+       # print('')
 
         if done:
             env.display_route_in_browser()
             break
-
+    for k,p in charging_points.items():
+        print 'Stop at {0} for {1} minutes.'.format(env.get_waypoint_from_index(env.get_state_from_index(state)[2]).Title, p*4)
         
-print('Average reward: ', average_reward/10)
+print('Average reward: ', average_reward)

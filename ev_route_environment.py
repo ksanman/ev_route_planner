@@ -19,7 +19,7 @@ class NavigationAction(Enum):
 
 class Waypoint:
     def __init__(self, id, lat, lon,distance_from_previous_node, time_from_previous_node, 
-        energy_to_node, is_charger=True, charge_rate = 10, charge_price = 1.2, title=None):
+        energy_to_node, is_charger=False, charge_rate = 10, charge_price = 1.2, title=None):
         self.id = id
         self.lat = lat
         self.lon = lon
@@ -32,7 +32,7 @@ class Waypoint:
         self.Title = title
 
 class EvRouteEnvironment:
-    def __init__(self, trip_time=6, extra_time = 2, battery_cap=100, average_mpkwh = 5, startLocation = ['-111.8338','41.7370'], 
+    def __init__(self, trip_time=6, extra_time = 2, battery_cap=100, average_mpkwh = 3, startLocation = ['-111.8338','41.7370'], 
         endLocation=['-109.5498','38.5733'], charger_radius=5, route_from_file=False, 
         chargers_from_file=False):
 
@@ -150,7 +150,7 @@ class EvRouteEnvironment:
         w = self.get_waypoint_from_index(state[2])
         battery_level = state[1]
         time_reward = self.expected_time - state[0]
-        battery_reward = -pow((1/5) * battery_level - 10, 2) if battery_level < 50 else 0
+        battery_reward = -pow((1/3) * battery_level - 20, 2) if battery_level < 50 else 0
         if w.is_charger:
             return time_reward
         else:
@@ -266,7 +266,7 @@ class EvRouteEnvironment:
         new_time = state[0] + next_location.time_from_previous_node
         done = False
         reward = 0
-        if new_battery_level < 0:
+        if new_battery_level < 1:
             new_battery_level =  0
             reward -= 100
             done = True
