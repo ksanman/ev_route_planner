@@ -33,11 +33,6 @@ T = [env.calculate_terminal_reward(s) for s in range(end_state_start, len(env.st
 
 print('time: ', time() - t)
 
-# for t in range(times):
-#     for eBatt in range(battery_max):
-#         s = env.get_index_from_state([t, eBatt, W])
-#         V[s] = env.calculate_terminal_reward(s)
-
 
 # compute the rewards of each action for each state.
 D_reward =  [[0,0.0] for _ in range(end_state_start)]
@@ -75,41 +70,6 @@ while True:
         break
     i += 1
 
-# while True:
-#     print ('Round {0}'.format(i))
-#     delta = 0
-#     for s in range(end_state_start -1 , 0, -1):
-#         v = V[s]
-#         V[s] =  np.argmax([reward + V[next_state] for next_state,reward
-#                 in [env.get_instant_reward_and_next_state(s, a) 
-#                     for a in actions]])
-#         err = v - V[s]
-#         a = abs(err)
-#         delta = max(delta, a)
-#     if delta < 0.001:
-#         break
-#     i += 1
-
-# while True:
-#     print ('Round {0}'.format(i))
-#     delta = 0
-#     for w in range(W-1, 0, -1):
-#         for t in range(times):
-#             for b in range(battery_max):
-#                 s = env.get_index_from_state([t, b, w])
-#                 v = V[s]
-#                 best = -100
-#                 for a in env.actions:
-#                     next_state, reward = env.get_instant_reward_and_next_state(s, a)
-#                     best = max(best, reward + V[next_state])
-#                 V[s] = best
-#                 err = v - V[s]
-#                 a = abs(err)
-#                 delta = max(delta, a)
-#     if delta < 0.001:
-#         break
-#     i += 1
-
 
 #get the optimal policy from those values
 print('Finding optimal policy')
@@ -139,41 +99,25 @@ for n in range(1):
     charging_points = {}
     while True:
         action_taken = ev_route_environment.NavigationAction(int(policy[state]))
-       # print('Previous state:')
-       # print('time: ', env.get_state_from_index(state)[0] * .25 * 60, ' minutes')
-       # print('battery level: ', env.get_state_from_index(state)[1])
-       # print('checkpoint: ', env.get_state_from_index(state)[2])
-       # print('action taken: {0}'.format(action_taken.name))
-       # print('')
 
         state, reward, done = env.act(state, int(policy[state]))
 
         if action_taken == ev_route_environment.NavigationAction.charging:
             env.add_waypoint_charger_to_final_route(state)
-            if env.get_state_from_index(state)[2] in charging_points:
-                  charging_points[env.get_state_from_index(state)[2]] += 1
-            else:
+            if env.get_state_from_index(state)[2] not in charging_points:
                   charging_points[env.get_state_from_index(state)[2]] = 1
-       # print('New state:')
-       # print('time: ', env.get_state_from_index(state)[0] * .25 * 60, ' minutes')
-       # print('battery level: ', env.get_state_from_index(state)[1])
-       # print('checkpoint: ', env.get_state_from_index(state)[2])
-       # print('Distance Traveled: {0}'.format(env.get_waypoint_from_index(env.get_state_from_index(state)[2]).distance_from_previous_node))
-       # print('Energy Used: {0}'.format(env.get_waypoint_from_index(env.get_state_from_index(state)[2]).energy_to_node))
-       # print('')
+            else:
+                  charging_points[env.get_state_from_index(state)[2]] += 1
 
         total_reward += reward
         step_index += 1
         average_reward += total_reward
-       # print('total reward:' ,total_reward)
-       # print('')
-       # print('')
 
         if done:
             env.display_route_in_browser()
             break
     for k,p in charging_points.items():
-        w = env.get_waypoint_from_index(env.get_state_from_index(state)[2]).Title
+        w = env.get_waypoint_from_index(k).Title
         t = p*15
         s = 'Stop at {0} for {1} minutes.'.format(w, t)
         print(s)
