@@ -9,6 +9,9 @@ import charger_database_manager
 import charger_objects as co
 
 class Router:
+    """
+    Used to perform routing calculations for the environment. 
+    """
     def __init__(self):
         self.request_string = 'http://router.project-osrm.org/route/v1/driving/{0},{1};{2},{3}?overview=full&steps=true'
         self.charger_database = charger_database_manager.ChargerDatabase()
@@ -16,6 +19,10 @@ class Router:
         self.nearest_chargers_file = 'data/nearest_charger.json'
     
     def get_route(self, start, end):
+        """
+        Submits a request to OSRM to get a route data. All that are needed are the start coordinates
+        and the end coordinates in latitude, longitude pairs. 
+        """
         print('Getting route...')
         url_request = self.request_string.format(start[0], start[1], end[0], end[1])
         r = requests.get(url_request)
@@ -28,6 +35,9 @@ class Router:
         return self.build_route(data)
 
     def get_road_distance_and_between_points(self, point1, point2):
+        """
+        Compute the distance between to lat/long points by traveling on a road. 
+        """
         request = 'http://router.project-osrm.org/route/v1/driving/{0},{1};{2},{3}?overview=simplified'.format(point1[1], point1[0], point2[1], point2[0])
         r = requests.get(request)
         c = r.content 
@@ -40,6 +50,9 @@ class Router:
 
 
     def draw_route(self, coordinates, charge_points):
+        """
+        Draw a route on an OSM map and display the charging points on top of it. 
+        """
         # Create the map and add the line
         print('Drawing route')
         m = folium.Map(location=[41.9, -97.3], zoom_start=4)
@@ -54,6 +67,10 @@ class Router:
         webbrowser.open(filepath)
 
     def save_to_file(self,data):
+        """
+        Save a json route to the disk. 
+        """
+
         print('saving to file')
         with open(self.route_filepath, 'w') as f:
             f.write(json.dumps(data, indent=4, sort_keys=True))
@@ -61,6 +78,9 @@ class Router:
         print('route saved to ',self.route_filepath)
 
     def get_route_from_file(self):
+        """
+        Load a route from the disk.  
+        """
         print('Loading route...')
 
         with open(self.route_filepath, 'r') as f:
@@ -70,6 +90,10 @@ class Router:
         return self.build_route(data)
 
     def build_route(self, data):
+        """
+        Build a route from json data. 
+        Returns the route coordinates as well as all intersections along the route. 
+        """
         route = data["routes"][0]
         print('building route')
         #get the intersections along the route
@@ -79,6 +103,9 @@ class Router:
         return {'route':polyline.decode(route['geometry']),'intersections':intersections}
 
     def get_intersections(self, data):
+        """
+        Get all the intersections along the route.
+        """
         intersections = []
         for l in data['legs']:
             for s in l['steps']:
@@ -90,6 +117,10 @@ class Router:
 
 
     def get_nearest_chargers(self, route):
+        """
+        Get the chargers closest each waypoint in the route. 
+        """
+
         print('Getting nearest chargers')
         nearest_chargers_dict = {}
         nearest_chargers = []
@@ -127,10 +158,16 @@ class Router:
         return nearest_chargers
         
     def save_nearest_chargers(self, nearest_chargers):
+        """
+        Save the nearest chargers in json format to a file for quick retrievel. 
+        """
         with open(self.nearest_chargers_file, 'w') as f:
             f.write(json.dumps(nearest_chargers, default=co.to_json, indent=4, sort_keys=False))
 
     def get_nearest_chargers_from_file(self):
+        """
+        Load the nearest chargers from a file. 
+        """
         with open(self.nearest_chargers_file, 'r') as f:
             data = json.loads( f.read())
             addresses = []

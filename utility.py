@@ -1,7 +1,11 @@
+"""
+Utility program used to populate the database.
+"""
+
 import charger_database_manager as dm
 import charger_objects as co
 
-        # #Create the database and populate it.
+# #Create the database and populate it.
 try:
     charger_database = dm.ChargerDatabase()
     charger_file_io  = co.ChargerObjects()

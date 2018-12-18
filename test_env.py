@@ -1,3 +1,7 @@
+"""
+Utility file used to test a small environment against the value iteration algorithm.
+"""
+
 from enum import Enum
 from math import pow
 import geopy.distance
@@ -6,10 +10,16 @@ from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timedelta
 
 class NavigationAction(Enum):
+    """
+    Enumeration of the action space.
+    """
     driving = 0
     charging = 1
 
 class Waypoint:
+    """
+    Represents a waypoint along the route. 
+    """
     def __init__(self, id, lat, lon, has_charger=True):
         self.id = id
         self.lat = lat
@@ -17,6 +27,9 @@ class Waypoint:
         self.has_charger = has_charger
 
 class TestEnv:
+    """
+    Test environment class used to test value iteration algorithm.
+    """
     def __init__(self):
         self.end = 3
         self.time_max = 8

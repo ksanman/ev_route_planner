@@ -14,10 +14,17 @@ from decimal import ROUND_HALF_UP
 METERS_TO_MILES = 1609.344
 
 class NavigationAction(Enum):
+    """
+    Enumeration of the action space. 
+    """
     driving = 0
     charging = 1
 
 class Waypoint:
+    """
+    Defines a waypoint along the route. Includes information about the charger and information about
+    the trip from the previous waypoint
+    """
     def __init__(self, id, lat, lon,distance_from_previous_node, time_from_previous_node, 
         energy_to_node, is_charger=True, charge_rate = 10, charge_price = 0.20, title=None):
         self.id = id
@@ -32,9 +39,20 @@ class Waypoint:
         self.Title = title
 
 class EvRouteEnvironment:
+    """
+    Used to model the route from a start point to a destination. Calculates all distances and travel times. 
+    Has functions to model rewards at different states. 
+    """
     def __init__(self, trip_time=6, extra_time = 2, battery_cap=100, average_mpkwh = 3, startLocation = ['-111.8338','41.7370'], 
         endLocation=['-109.5498','38.5733'], charger_radius=5, route_from_file=False, 
         chargers_from_file=False):
+        """
+        Create a new environment. Takes the expected trip time, a buffer of time, the capacity of the battery, 
+        the mpkwh for the vehicle, the start location, the end location, and the radius to search for chargers 
+        along the route. It also includes flags for loading a route and nearest chargers from a file instead
+        of sending requests to the OSRM api and database. If these flags are true, the route and nearest charger
+        files must be of the same route. 
+        """
 
         print('Creating new environment')
         self.charger_database = db.ChargerDatabase()

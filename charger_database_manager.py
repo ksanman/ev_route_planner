@@ -3,10 +3,16 @@ import psycopg2.sql as sql
 from psycopg2.extras import RealDictCursor
 
 class ChargerDatabase:
+    """
+    Clased used to populate postgres database. The database must have the 'ev' schema defined. 
+    """
     def __init__(self):
         pass
 
     def create(self):
+        """ 
+        Creates tables needed to store charger information in the database. 
+        """
         conn = psycopg2.connect(host='localhost', dbname='evvehicle',user='evvehicle',password='ev-vehicle')
         conn.autocommit = True
         # create a cursor object called cur
@@ -148,6 +154,9 @@ class ChargerDatabase:
         conn.close()
 
     def insert(self, chargers):
+        """
+        Inserts the passed in charger objects into the database. 
+        """
         conn = psycopg2.connect(host='localhost', dbname='evvehicle',user='evvehicle',password='ev-vehicle')
         conn.autocommit = True
 
@@ -401,6 +410,9 @@ class ChargerDatabase:
         conn.close()
 
     def drop(self):
+        """
+        Drops everything from the database. 
+        """
         conn = psycopg2.connect(host='localhost', dbname='evvehicle',user='evvehicle',password='ev-vehicle')
         conn.autocommit = True
         # create a cursor object called cur
@@ -421,6 +433,10 @@ class ChargerDatabase:
         conn.close()
 
     def get_nearest_chargers(self, point = [41.7370,-111.8338], distance=3):
+        """
+        Gets the chargers from the database within the given radius to the given point. 
+        """
+
         nearest_point_query = """
         SELECT 
             c.ID as ID,

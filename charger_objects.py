@@ -1,6 +1,10 @@
 import json
 
 class AddressInfo:
+    """
+    A class used to hold the AddressInfo from the OSRM request.
+    AddressInfo describes a charger location.
+    """
     def __init__(self, accessComments=None, addressLine1=None,addressLine2=None,contactEmail=None,contactTelephone1=None,contactTelephone2=None,
                  countryID=None,distanceUnit=None,ID=None,lat=None,long=None,postcode=None,relatedUrl=None, state=None,title=None,town=None,
                  distanceFromCurrentWaypoint=None, trip_distance=None):
@@ -27,6 +31,11 @@ def to_json(instance):
     return {k:v for k , v in vars(instance).items() if not str(k).startswith('_')}
 
 class Connection:
+    """
+    A class used to hold a Connection from the OSRM request.
+    Connection contains information about the chargers connection to the car, such as max voltage, charing speed,
+    and charger level.
+    """
     def __init__(self, amps=None, connectionTypeId = None, currentTypeId = None, ID = None, levelID = None, powerKw = None, quantity=None, statusTypeID=None, voltage =None):
         self.Amps = amps
         self.ConnectionTypeID = connectionTypeId
@@ -39,6 +48,10 @@ class Connection:
         self.Voltage = voltage
 
 class MediaItem:
+    """
+    A class used to hold a MediaItem from the OSRM request.
+    MediaItem describes a photo or video of the charger.
+    """
     def __init__(self, user=None, chargePointID = None, comment = None, dateCreate =None, ID = None, isEnabled = None, isExternalResource = None, isFeaturedItem = None,
                  isVideo=None, itemThumbnailURL = None, itemURL = None):
         self.ChargePointID = chargePointID
@@ -54,6 +67,10 @@ class MediaItem:
         self.User = user
 
 class User:
+    """
+    A class used to hold a User from the OSRM request.
+    User describes the user who added the charger or media. 
+    """
     def __init__(self, ID, profileImageURL=None, reputationPoints=None, username=None):
          self.ID=ID
          self.ProfileImageURL=profileImageURL
@@ -61,6 +78,10 @@ class User:
          self.Username = username
 
 class UserComment:
+    """
+    A class used to hold a UserComment from the OSRM request.
+    UserComment describes a comment left by a user about the charger.
+    """
     def __init__(self,user=None, chargePointsID=None, checkInStatusTypeID=None,commentTypeID=None, dateCreated=None,ID=None,rating=None,userName=None):
         self.ChargePointID = chargePointsID
         self.CheckinStatusTypeID = checkInStatusTypeID
@@ -72,6 +93,11 @@ class UserComment:
         self.UserName=userName
             
 class Charger:
+    """
+    A class used to hold the charger from the OSRM request.
+    Charger describes a charging station, including address, type, information about the connection, 
+    and any user data (photos, videos, comments).
+    """
     def __init__(self, addressInfo, connections, mediaItems = None, userComments = None, dataProviderID=None, dataQualityLevel = None, dateCreated=None,dateLastStatusUpdate=None,
                  dateLastVerified=None,generalComments=None,ID=None,isRecentlyVerified=None,numberOfPoints=None,operatorID=None,statusTypeID=None,submissionStatusTypeID=None,
                  uuid = None, usageCost = None, usageTypeID= None):
@@ -96,6 +122,9 @@ class Charger:
         self.UserComments = userComments
 
 def address_decoder(addressInfo):
+    """
+    Function used to decode a json string into an AddressInfo object. 
+    """
     return AddressInfo(addressInfo['AccessComments'] if 'AccessComments' in addressInfo else None,
         addressInfo['AddressLine1'] if 'AddressLine1' in addressInfo else None,
         addressInfo['AddressLine2'] if 'AddressLine2' in addressInfo else None,
@@ -114,6 +143,9 @@ def address_decoder(addressInfo):
         addressInfo['Town'] if 'Town' in addressInfo else None)
 
 def object_decoder(obj):
+    """
+    Function used to decode a json string into a Charger object. 
+    """
     if 'AddressInfo' in obj:
         addressInfo = obj['AddressInfo']
         a_info= address_decoder(addressInfo)
@@ -200,10 +232,17 @@ def object_decoder(obj):
     return charger
 
 class ChargerObjects:
+    """
+    Used to retrieve a list of charger objects from an OSRM request. 
+    The request must be saved to a file. 
+    """
     def __init__(self):
         pass
     
     def get_us_charge_locations(self, filepath='data/us_charge_data_simple.json'):
+        """
+        Gets the charger objects from the US charger request json file saved locally. 
+        """
         print('Getting json data')
         with open(filepath, 'r') as f:
             data = json.loads( f.read())
