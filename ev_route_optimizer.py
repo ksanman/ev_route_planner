@@ -1,7 +1,7 @@
 """
 
 Author: Kody Sanchez
-Class: CS5860 - Machine Learning and Clean Energy 
+Class: CS5890 - Machine Learning and Clean Energy 
 Instructor: Dr. Nicholas Flann
 Description: A program used to find optimal charging points on any route in Utah. 
 The program uses value iteration to find an optimal policy given trip time, start and end point, 
